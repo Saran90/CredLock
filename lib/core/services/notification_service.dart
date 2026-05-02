@@ -15,7 +15,7 @@ class NotificationService {
   /// Initialise the plugin and create the Android notification channel.
   Future<void> init() async {
     const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
+      '@drawable/ic_notification',
     );
     const iosSettings = DarwinInitializationSettings();
     const initSettings = InitializationSettings(
@@ -92,6 +92,7 @@ class NotificationService {
         channelDescription: _channelDescription,
         importance: Importance.high,
         priority: Priority.high,
+        icon: '@drawable/ic_notification',
       ),
     );
     await _plugin.show(
