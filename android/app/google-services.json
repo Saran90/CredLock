@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "930123015480",
+    "project_id": "credlock-f7f25",
+    "storage_bucket": "credlock-f7f25.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:930123015480:android:410fca1aa92cfb33650dcd",
+        "android_client_info": {
+          "package_name": "com.credlock.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "930123015480-crahkav0gc7g1aiq8jqon1u58htdsjtt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.credlock.app",
+            "certificate_hash": "b0dd196a7adb6eeb0a0e0e847be6dbf44b12e05f"
+          }
+        },
+        {
+          "client_id": "930123015480-vvnej1h82gfp9k47r57i1ihrkk28apn6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.credlock.app",
+            "certificate_hash": "8c42b5118912eaf6a8bb6e404c3051adc3c16b01"
+          }
+        },
+        {
+          "client_id": "930123015480-bu4ntk1mm02g3jhpaab1hsnesjqbkvet.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWc_z01lEbfFsuNd6jNfeIXhxQpj3SHpU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "930123015480-bu4ntk1mm02g3jhpaab1hsnesjqbkvet.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

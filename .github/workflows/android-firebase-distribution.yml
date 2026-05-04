@@ -14,22 +14,22 @@ on:
 
 # Required GitHub Secrets:
 #
-#   KEYSTORE_BASE64        — base64-encoded credlock-release.jks
-#                            Generate with: base64 -w 0 android/credlock-release.jks
+#   KEYSTORE_BASE64       — base64-encoded credlock-release.jks
+#                           Generate with:
+#                             Linux/Mac:  base64 -w 0 android/credlock-release.jks
+#                             PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes("android/credlock-release.jks"))
 #
-#   KEY_ALIAS              — keyAlias value from key.properties
-#   KEY_PASSWORD           — keyPassword value from key.properties
-#   STORE_PASSWORD         — storePassword value from key.properties
+#   KEY_ALIAS             — keyAlias value  (credlock)
+#   KEY_PASSWORD          — keyPassword value
+#   STORE_PASSWORD        — storePassword value
 #
-#   GOOGLE_SERVICES_JSON   — full contents of android/app/google-services.json
-#
-#   FIREBASE_APP_ID        — Firebase Android App ID
-#                            e.g. 1:930123015480:android:410fca1aa92cfb33650dcd
+#   FIREBASE_APP_ID       — Firebase Android App ID
+#                           e.g. 1:930123015480:android:410fca1aa92cfb33650dcd
 #
 #   FIREBASE_SERVICE_ACCOUNT_JSON — Google service account JSON with
 #                                   Firebase App Distribution Admin role
-#                                   (create at console.firebase.google.com →
-#                                    Project Settings → Service accounts)
+#
+# NOTE: google-services.json is committed to the repo (it contains no private keys).
 
 jobs:
   build-and-distribute:
@@ -56,7 +56,7 @@ jobs:
           channel: stable
           cache: true
 
-      # ── Restore secrets ───────────────────────────────────────────────────
+      # ── Restore signing secrets ────────────────────────────────────────────
       - name: Restore keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
@@ -71,11 +71,6 @@ jobs:
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=../credlock-release.jks\n' \
             "$STORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" \
             > android/key.properties
-
-      - name: Restore google-services.json
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       # ── Dependencies ──────────────────────────────────────────────────────
       - name: Install Flutter dependencies
@@ -93,7 +88,7 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
 
-      # ── Firebase App Distribution ─────────────────────────────────────────
+      # ── Firebase App Distribution ──────────────────────────────────────────
       - name: Distribute to Firebase App Distribution
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
