@@ -48,5 +48,3 @@ app.*.map.json
 android/key.properties
 android/credlock-release.jks
 android/local.properties
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
