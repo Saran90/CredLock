@@ -76,9 +76,24 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
 
+      # ── Verify secrets ────────────────────────────────────────────────────
+      - name: Verify keystore
+        run: |
+          if [ ! -f android/credlock-release.jks ]; then
+            echo "ERROR: keystore file missing"; exit 1
+          fi
+          echo "Keystore size: $(wc -c < android/credlock-release.jks) bytes"
+          keytool -list -keystore android/credlock-release.jks \
+            -storepass "${{ secrets.STORE_PASSWORD }}" -v 2>&1 | head -20
+
+      - name: Verify key.properties
+        run: |
+          echo "--- key.properties (passwords redacted) ---"
+          grep -v "Password" android/key.properties || true
+
       # ── Build ─────────────────────────────────────────────────────────────
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --verbose 2>&1 | tee build_log.txt || (tail -100 build_log.txt && exit 1)
 
       # ── Upload artifact ───────────────────────────────────────────────────
       - name: Upload APK artifact
