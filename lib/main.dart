@@ -9,10 +9,34 @@ import 'features/splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AuthService.instance.init();
-  await Workmanager().initialize(callbackDispatcher);
-  await NotificationService.instance.init();
-  await ReminderService.instance.init();
+
+  // Catch any unhandled exceptions
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('🔴 Flutter Error: ${details.exception}');
+    debugPrintStack(stackTrace: details.stack);
+  };
+
+  try {
+    debugPrint('🟡 Initializing AuthService...');
+    await AuthService.instance.init();
+    debugPrint('✅ AuthService initialized');
+
+    debugPrint('🟡 Initializing Workmanager...');
+    await Workmanager().initialize(callbackDispatcher);
+    debugPrint('✅ Workmanager initialized');
+
+    debugPrint('🟡 Initializing NotificationService...');
+    await NotificationService.instance.init();
+    debugPrint('✅ NotificationService initialized');
+
+    debugPrint('🟡 Initializing ReminderService...');
+    await ReminderService.instance.init();
+    debugPrint('✅ ReminderService initialized');
+  } catch (e, st) {
+    debugPrint('🔴 Initialization error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
