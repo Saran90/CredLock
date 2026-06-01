@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/biometric_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../auth/biometric_auth_screen.dart';
 import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
 
@@ -192,9 +194,24 @@ class _SplashScreenState extends State<SplashScreen>
     await _exitController.forward();
 
     if (mounted) {
-      final destination = AuthService.instance.isSignedIn
-          ? const HomeScreen()
-          : const LoginScreen();
+      Widget destination;
+
+      if (!AuthService.instance.isSignedIn) {
+        destination = const LoginScreen();
+      } else {
+        // Check if biometric auth is enabled and available
+        final biometricEnabled = await BiometricService.instance.isEnabled();
+        final biometricAvailable = await BiometricService.instance
+            .hasBiometricOrDeviceCredential();
+
+        if (biometricEnabled && biometricAvailable) {
+          destination = const BiometricAuthScreen();
+        } else {
+          destination = const HomeScreen();
+        }
+      }
+
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, _, _) => destination,

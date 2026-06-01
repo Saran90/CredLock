@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/models/reminder_frequency.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/biometric_service.dart';
 import '../../core/services/drive_backup_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/reminder_service.dart';
@@ -27,6 +28,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _backupInProgress = false;
   bool _restoreInProgress = false;
 
+  // Biometric auth state
+  bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
+
   @override
   void initState() {
     super.initState();
@@ -37,12 +42,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = await SharedPrefsReminderSettingsRepository.instance
         .getSettings();
     final hasPermission = await NotificationService.instance.hasPermission();
+    final biometricEnabled = await BiometricService.instance.isEnabled();
+    final biometricAvailable = await BiometricService.instance
+        .hasBiometricOrDeviceCredential();
 
     if (!mounted) return;
     setState(() {
       _enabled = settings.enabled;
       _frequency = settings.frequency;
       _permissionDenied = settings.enabled && !hasPermission;
+      _biometricEnabled = biometricEnabled;
+      _biometricAvailable = biometricAvailable;
       _loading = false;
     });
   }
@@ -85,6 +95,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _frequency = frequency;
     });
+  }
+
+  // ── Biometric Auth ─────────────────────────────────────────────────────────
+
+  Future<void> _onBiometricToggleChanged(bool value) async {
+    await BiometricService.instance.setEnabled(value);
+    if (!mounted) return;
+    setState(() => _biometricEnabled = value);
   }
 
   // ── Backup ─────────────────────────────────────────────────────────────────
@@ -218,6 +236,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onRestore: _handleRestore,
                   onSignOut: _handleSignOut,
                 ),
+
+                // ── SECURITY section ─────────────────────────────────────────
+                if (_biometricAvailable)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SECURITY',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.textHint,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.cardBackground,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: SwitchListTile(
+                            secondary: const Icon(
+                              Icons.fingerprint_rounded,
+                              color: AppColors.primary,
+                            ),
+                            title: Text(
+                              'Biometric Authentication',
+                              style: AppTextStyles.titleMedium,
+                            ),
+                            subtitle: Text(
+                              'Require fingerprint, face, or device PIN on every app open',
+                              style: AppTextStyles.bodySmall,
+                            ),
+                            value: _biometricEnabled,
+                            onChanged: _onBiometricToggleChanged,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
 
                 // ── PASSWORD REMINDERS section ───────────────────────────────
                 Padding(
