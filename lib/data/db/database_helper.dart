@@ -76,4 +76,20 @@ class DatabaseHelper {
     await _db?.close();
     _db = null;
   }
+
+  /// Deletes all data from the passwords table.
+  /// Used when signing out to prevent data leakage across accounts.
+  Future<void> clearAllData() async {
+    final db = await database;
+    await db.delete(tablePasswords);
+  }
+
+  /// Deletes the entire database file from disk.
+  /// Used for complete cleanup on account switch.
+  Future<void> deleteDatabase() async {
+    await close();
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, _dbName);
+    await databaseFactory.deleteDatabase(path);
+  }
 }

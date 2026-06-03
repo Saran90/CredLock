@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
     <application
-        android:label="credlock"
+        android:label="Credlock"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

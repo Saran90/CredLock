@@ -7,6 +7,7 @@ import '../../core/services/notification_service.dart';
 import '../../core/services/reminder_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../data/db/database_helper.dart';
 import '../../data/repositories/reminder_settings_repository.dart';
 import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
@@ -188,7 +189,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
+        content: const Text(
+          'Are you sure you want to sign out? This will delete all local vault data.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -196,6 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Sign Out'),
           ),
         ],
@@ -204,7 +208,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirmed != true) return;
 
+    // Clear all local vault data to prevent cross-account access
+    try {
+      await DatabaseHelper.instance.deleteDatabase();
+    } catch (e) {
+      debugPrint('Failed to delete database: $e');
+    }
+
+    // Disconnect Google account
     await AuthService.instance.disconnect();
+
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
