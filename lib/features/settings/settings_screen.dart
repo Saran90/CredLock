@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/reminder_frequency.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/biometric_service.dart';
+import '../../core/services/clipboard_service.dart';
 import '../../core/services/drive_backup_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/reminder_service.dart';
@@ -33,6 +34,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _biometricEnabled = false;
   bool _biometricAvailable = false;
 
+  // Clipboard auto-clear state
+  int _clipboardTimeout = 30;
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _permissionDenied = settings.enabled && !hasPermission;
       _biometricEnabled = biometricEnabled;
       _biometricAvailable = biometricAvailable;
+      _clipboardTimeout = ClipboardService.instance.timeoutSeconds;
       _loading = false;
     });
   }
@@ -104,6 +109,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await BiometricService.instance.setEnabled(value);
     if (!mounted) return;
     setState(() => _biometricEnabled = value);
+  }
+
+  // ── Clipboard Auto-Clear ───────────────────────────────────────────────────
+
+  Future<void> _onClipboardTimeoutChanged(int seconds) async {
+    await ClipboardService.instance.setTimeoutSeconds(seconds);
+    if (!mounted) return;
+    setState(() => _clipboardTimeout = seconds);
   }
 
   // ── Backup ─────────────────────────────────────────────────────────────────
@@ -290,6 +303,96 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
+
+                // ── CLIPBOARD section ─────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'CLIPBOARD',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBackground,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.content_paste_off_outlined,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Auto-clear Clipboard',
+                                          style: AppTextStyles.titleMedium,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Wipe copied passwords from the clipboard automatically',
+                                          style: AppTextStyles.bodySmall,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: ClipboardService.timeoutOptions.map((
+                                  seconds,
+                                ) {
+                                  final label =
+                                      seconds == ClipboardService.disabled
+                                      ? 'Off'
+                                      : '${seconds}s';
+                                  final selected = _clipboardTimeout == seconds;
+                                  return ChoiceChip(
+                                    label: Text(label),
+                                    selected: selected,
+                                    selectedColor: AppColors.primary,
+                                    backgroundColor: AppColors.surface,
+                                    checkmarkColor: Colors.white,
+                                    labelStyle: TextStyle(
+                                      color: selected
+                                          ? Colors.white
+                                          : AppColors.textSecondary,
+                                      fontWeight: selected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                    onSelected: (_) =>
+                                        _onClipboardTimeoutChanged(seconds),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
 
                 // ── PASSWORD REMINDERS section ───────────────────────────────
                 Padding(

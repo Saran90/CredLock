@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../core/services/clipboard_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/models/password_entry.dart';
+import '../../data/repositories/password_repository.dart';
 import '../create/create_password_screen.dart';
 
 class VaultDetailScreen extends StatefulWidget {
@@ -33,36 +34,64 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       MaterialPageRoute(builder: (_) => CreatePasswordScreen(entry: _entry)),
     );
     if (saved == true && mounted) {
-      // Pop back to vault so it can reload — the vault will refresh the list
       Navigator.of(context).pop(true);
     }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final updated = await PasswordRepository.instance.toggleFavorite(_entry);
+    if (!mounted) return;
+    setState(() => _entry = updated);
+  }
+
+  Future<void> _handleDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        title: const Text('Delete entry?', style: AppTextStyles.titleLarge),
+        content: Text(
+          'Remove "${_entry.name}" from your vault? This cannot be undone.',
+          style: AppTextStyles.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || _entry.id == null) return;
+    await PasswordRepository.instance.delete(_entry.id!);
+    if (!mounted) return;
+    // Pop with true so VaultScreen reloads its list
+    Navigator.of(context).pop(true);
   }
 
   void _copyToClipboard(String label, String value) async {
     if (value.isEmpty) return;
 
-    await Clipboard.setData(ClipboardData(text: value));
-
-    if (!mounted) return;
-    setState(() {
-      _copied[label] = true;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label copied to clipboard'),
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppColors.primary.withValues(alpha: 0.9),
-      ),
+    ClipboardService.instance.copyWithAutoClear(
+      value: value,
+      label: label,
+      messenger: ScaffoldMessenger.of(context),
     );
 
-    // Reset copied state after 2 seconds
+    setState(() => _copied[label] = true);
     await Future.delayed(const Duration(seconds: 2));
-    if (mounted) {
-      setState(() {
-        _copied[label] = false;
-      });
-    }
+    if (mounted) setState(() => _copied[label] = false);
   }
 
   @override
@@ -77,10 +106,30 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          // Favorite toggle
+          IconButton(
+            icon: Icon(
+              _entry.isFavorite
+                  ? Icons.star_rounded
+                  : Icons.star_outline_rounded,
+              color: _entry.isFavorite
+                  ? const Color(0xFFFFB347)
+                  : AppColors.textSecondary,
+            ),
+            tooltip: _entry.isFavorite
+                ? 'Remove from favorites'
+                : 'Add to favorites',
+            onPressed: _toggleFavorite,
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
             tooltip: 'Edit',
             onPressed: _openEdit,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: AppColors.error),
+            tooltip: 'Delete',
+            onPressed: _handleDelete,
           ),
         ],
       ),
