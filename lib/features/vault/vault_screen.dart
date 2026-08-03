@@ -77,13 +77,6 @@ class _VaultScreenState extends State<VaultScreen> {
     setState(() => _filtered = results);
   }
 
-  Future<void> _openCreate() async {
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const CreatePasswordScreen()),
-    );
-    if (saved == true) _load();
-  }
-
   Future<void> _delete(PasswordEntry entry) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -118,6 +111,17 @@ class _VaultScreenState extends State<VaultScreen> {
     }
   }
 
+  Future<void> _toggleFavorite(PasswordEntry entry) async {
+    final updated = await PasswordRepository.instance.toggleFavorite(entry);
+    // Optimistically update in-place without a full reload for a snappy feel.
+    setState(() {
+      _entries = _entries.map((e) => e.id == updated.id ? updated : e).toList();
+      _filtered = _filtered
+          .map((e) => e.id == updated.id ? updated : e)
+          .toList();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,7 +139,7 @@ class _VaultScreenState extends State<VaultScreen> {
                 ),
                 onChanged: _onSearch,
               )
-            : const Text('credlock'),
+            : const Text('CredLock'),
         actions: [
           IconButton(
             icon: Icon(
@@ -161,12 +165,6 @@ class _VaultScreenState extends State<VaultScreen> {
           : _filtered.isEmpty
           ? _buildEmpty()
           : _buildList(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openCreate,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.black,
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
@@ -207,8 +205,13 @@ class _VaultScreenState extends State<VaultScreen> {
 
   Widget _buildList() {
     // Group by category
-    final websites = _filtered.where((e) => e.category == 'website').toList();
-    final mobile = _filtered.where((e) => e.category == 'mobile').toList();
+    final favorites = _filtered.where((e) => e.isFavorite).toList();
+    final websites = _filtered
+        .where((e) => !e.isFavorite && e.category == 'website')
+        .toList();
+    final mobile = _filtered
+        .where((e) => !e.isFavorite && e.category == 'mobile')
+        .toList();
     final overdueIds = _overdueEntries.map((e) => e.id).toSet();
 
     return ListView(
@@ -230,6 +233,25 @@ class _VaultScreenState extends State<VaultScreen> {
           ),
           const SizedBox(height: 16),
         ],
+
+        // ── Favorites section ────────────────────────────────────────────
+        if (favorites.isNotEmpty) ...[
+          _sectionLabel('FAVORITES', Icons.star_rounded),
+          const SizedBox(height: 10),
+          ...favorites.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _VaultItem(
+                entry: e,
+                isOverdue: overdueIds.contains(e.id),
+                onDelete: () => _delete(e),
+                onToggleFavorite: () => _toggleFavorite(e),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+
         if (websites.isNotEmpty) ...[
           _sectionLabel('WEBSITES', Icons.language),
           const SizedBox(height: 10),
@@ -240,6 +262,7 @@ class _VaultScreenState extends State<VaultScreen> {
                 entry: e,
                 isOverdue: overdueIds.contains(e.id),
                 onDelete: () => _delete(e),
+                onToggleFavorite: () => _toggleFavorite(e),
               ),
             ),
           ),
@@ -255,6 +278,7 @@ class _VaultScreenState extends State<VaultScreen> {
                 entry: e,
                 isOverdue: overdueIds.contains(e.id),
                 onDelete: () => _delete(e),
+                onToggleFavorite: () => _toggleFavorite(e),
               ),
             ),
           ),
@@ -396,11 +420,13 @@ class _VaultItem extends StatelessWidget {
   final PasswordEntry entry;
   final bool isOverdue;
   final VoidCallback onDelete;
+  final VoidCallback onToggleFavorite;
 
   const _VaultItem({
     required this.entry,
     required this.isOverdue,
     required this.onDelete,
+    required this.onToggleFavorite,
   });
 
   @override
@@ -531,6 +557,24 @@ class _VaultItem extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
               ],
+
+              // Favorite star button
+              GestureDetector(
+                onTap: onToggleFavorite,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    entry.isFavorite
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
+                    color: entry.isFavorite
+                        ? const Color(0xFFFFB347)
+                        : AppColors.textHint,
+                    size: 18,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
 
               // Category badge
               Container(

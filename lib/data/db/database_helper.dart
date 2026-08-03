@@ -8,7 +8,7 @@ class DatabaseHelper {
   static Database? _db;
 
   static const _dbName = 'credlock.db';
-  static const _dbVersion = 3;
+  static const _dbVersion = 4;
   static const tablePasswords = 'passwords';
 
   Future<Database> get database async {
@@ -40,7 +40,8 @@ class DatabaseHelper {
         package_name    TEXT,
         app_icon_base64 TEXT,
         created_at      TEXT    NOT NULL,
-        last_updated_at TEXT    NOT NULL
+        last_updated_at TEXT    NOT NULL,
+        is_favorite     INTEGER NOT NULL DEFAULT 0
       )
     ''');
   }
@@ -60,6 +61,11 @@ class DatabaseHelper {
       );
       await db.execute(
         'UPDATE $tablePasswords SET last_updated_at = created_at WHERE last_updated_at IS NULL',
+      );
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+        'ALTER TABLE $tablePasswords ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0',
       );
     }
   }

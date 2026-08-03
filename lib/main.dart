@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:workmanager/workmanager.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/clipboard_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/reminder_service.dart';
 import 'core/theme/app_theme.dart';
@@ -32,6 +33,10 @@ void main() async {
     debugPrint('🟡 Initializing ReminderService...');
     await ReminderService.instance.init();
     debugPrint('✅ ReminderService initialized');
+
+    debugPrint('🟡 Initializing ClipboardService...');
+    await ClipboardService.instance.init();
+    debugPrint('✅ ClipboardService initialized');
   } catch (e, st) {
     debugPrint('🔴 Initialization error: $e');
     debugPrintStack(stackTrace: st);

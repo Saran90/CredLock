@@ -10,6 +10,7 @@ class PasswordEntry {
   final String? appIconBase64;
   final DateTime createdAt;
   final DateTime lastUpdatedAt;
+  final bool isFavorite;
 
   const PasswordEntry({
     this.id,
@@ -23,6 +24,7 @@ class PasswordEntry {
     this.appIconBase64,
     required this.createdAt,
     DateTime? lastUpdatedAt,
+    this.isFavorite = false,
   }) : lastUpdatedAt = lastUpdatedAt ?? createdAt;
 
   Map<String, dynamic> toMap() => {
@@ -37,6 +39,7 @@ class PasswordEntry {
     'app_icon_base64': appIconBase64,
     'created_at': createdAt.toIso8601String(),
     'last_updated_at': lastUpdatedAt.toIso8601String(),
+    'is_favorite': isFavorite ? 1 : 0,
   };
 
   factory PasswordEntry.fromMap(Map<String, dynamic> map) => PasswordEntry(
@@ -53,6 +56,7 @@ class PasswordEntry {
     lastUpdatedAt: map['last_updated_at'] != null
         ? DateTime.parse(map['last_updated_at'] as String)
         : DateTime.parse(map['created_at'] as String),
+    isFavorite: (map['is_favorite'] as int? ?? 0) == 1,
   );
 
   PasswordEntry copyWith({
@@ -67,6 +71,7 @@ class PasswordEntry {
     String? appIconBase64,
     DateTime? createdAt,
     DateTime? lastUpdatedAt,
+    bool? isFavorite,
   }) => PasswordEntry(
     id: id ?? this.id,
     category: category ?? this.category,
@@ -79,5 +84,6 @@ class PasswordEntry {
     appIconBase64: appIconBase64 ?? this.appIconBase64,
     createdAt: createdAt ?? this.createdAt,
     lastUpdatedAt: lastUpdatedAt ?? this.lastUpdatedAt,
+    isFavorite: isFavorite ?? this.isFavorite,
   );
 }

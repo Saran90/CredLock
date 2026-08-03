@@ -109,4 +109,20 @@ class PasswordRepository {
       whereArgs: [id],
     );
   }
+
+  // ── Favorite toggle ───────────────────────────────────────────────────────
+
+  /// Flips the [isFavorite] flag for a single entry without touching any
+  /// encrypted fields. Returns the updated entry.
+  Future<PasswordEntry> toggleFavorite(PasswordEntry entry) async {
+    final db = await _db;
+    final updated = entry.copyWith(isFavorite: !entry.isFavorite);
+    await db.update(
+      DatabaseHelper.tablePasswords,
+      {'is_favorite': updated.isFavorite ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [entry.id],
+    );
+    return updated;
+  }
 }
