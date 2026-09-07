@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/models/reminder_frequency.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/biometric_service.dart';
@@ -6,6 +8,7 @@ import '../../core/services/clipboard_service.dart';
 import '../../core/services/drive_backup_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/reminder_service.dart';
+import '../../core/services/update_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/db/database_helper.dart';
@@ -13,6 +16,7 @@ import '../../data/repositories/reminder_settings_repository.dart';
 import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
 import '../tags/tag_management_screen.dart';
+import '../update/force_update_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -38,6 +42,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Clipboard auto-clear state
   int _clipboardTimeout = 30;
 
+  // About section state
+  String _appVersion = '';
+  bool _checkingUpdate = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final biometricEnabled = await BiometricService.instance.isEnabled();
     final biometricAvailable = await BiometricService.instance
         .hasBiometricOrDeviceCredential();
+    final packageInfo = await PackageInfo.fromPlatform();
 
     if (!mounted) return;
     setState(() {
@@ -60,6 +69,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _biometricEnabled = biometricEnabled;
       _biometricAvailable = biometricAvailable;
       _clipboardTimeout = ClipboardService.instance.timeoutSeconds;
+      _appVersion = packageInfo.version;
       _loading = false;
     });
   }
@@ -194,6 +204,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
       setState(() => _restoreInProgress = false);
     }
+  }
+
+  // ── Check for Updates ──────────────────────────────────────────────────────
+
+  Future<void> _handleCheckForUpdates() async {
+    setState(() => _checkingUpdate = true);
+    final info = await UpdateService.instance.checkForUpdate();
+    if (!mounted) return;
+    setState(() => _checkingUpdate = false);
+
+    if (info == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not reach update server. Try again later.'),
+        ),
+      );
+      return;
+    }
+
+    if (info.status == UpdateStatus.forceUpdate) {
+      // Navigate to the force-update wall
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => ForceUpdateScreen(info: info)));
+      return;
+    }
+
+    if (info.status == UpdateStatus.softUpdate) {
+      _showUpdateDialog(info);
+      return;
+    }
+
+    // Up to date
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('CredLock v${info.currentVersion} is up to date.'),
+      ),
+    );
+  }
+
+  void _showUpdateDialog(UpdateInfo info) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        title: Text('Update Available', style: AppTextStyles.titleLarge),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Version ${info.latestVersion} is available. You are on ${info.currentVersion}.',
+              style: AppTextStyles.bodyMedium,
+            ),
+            if (info.releaseNotes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(info.releaseNotes, style: AppTextStyles.bodySmall),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(
+              'Later',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final uri = Uri.tryParse(info.updateUrl);
+              if (uri != null && await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: const Text(
+              'Update Now',
+              style: TextStyle(color: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ── Sign Out ───────────────────────────────────────────────────────────────
@@ -534,6 +628,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onOpenSettings: () => _showOpenSettingsSnackBar(),
                         ),
                       ],
+                    ],
+                  ),
+                ),
+
+                // ── ABOUT section ────────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ABOUT',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBackground,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            // Version tile
+                            ListTile(
+                              leading: const Icon(
+                                Icons.info_outline_rounded,
+                                color: AppColors.primary,
+                              ),
+                              title: Text(
+                                'Version',
+                                style: AppTextStyles.titleMedium,
+                              ),
+                              trailing: Text(
+                                _appVersion.isNotEmpty ? 'v$_appVersion' : '—',
+                                style: AppTextStyles.bodySmall,
+                              ),
+                            ),
+                            Divider(
+                              color: AppColors.divider,
+                              height: 1,
+                              thickness: 1,
+                            ),
+                            // Check for updates tile
+                            ListTile(
+                              leading: const Icon(
+                                Icons.system_update_outlined,
+                                color: AppColors.primary,
+                              ),
+                              title: Text(
+                                'Check for Updates',
+                                style: AppTextStyles.titleMedium,
+                              ),
+                              trailing: _checkingUpdate
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.primary,
+                                      ),
+                                    )
+                                  : const Icon(Icons.chevron_right),
+                              onTap: _checkingUpdate
+                                  ? null
+                                  : _handleCheckForUpdates,
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),

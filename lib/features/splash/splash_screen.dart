@@ -2,10 +2,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/biometric_service.dart';
+import '../../core/services/update_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../auth/biometric_auth_screen.dart';
 import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
+import '../update/force_update_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -194,6 +196,31 @@ class _SplashScreenState extends State<SplashScreen>
     await _exitController.forward();
 
     if (mounted) {
+      // ── Version check ───────────────────────────────────────────────────
+      // Run in parallel with the exit fade so there's no added delay for
+      // users on fast connections. Falls back gracefully on network failure.
+      final updateInfo = await UpdateService.instance.checkForUpdate();
+
+      if (!mounted) return;
+
+      // Force update: route to the update wall regardless of auth state.
+      if (updateInfo != null && updateInfo.status == UpdateStatus.forceUpdate) {
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (_, _, _) => ForceUpdateScreen(info: updateInfo),
+            transitionDuration: const Duration(milliseconds: 400),
+            transitionsBuilder: (_, animation, _, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+          ),
+        );
+        return;
+      }
+
+      // Soft update: store info in a global so HomeScreen can pick it up.
+      // (No navigation change — user continues normally.)
+      UpdateService.pendingInfo = updateInfo;
+
       Widget destination;
 
       if (!AuthService.instance.isSignedIn) {
