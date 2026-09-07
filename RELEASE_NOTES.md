@@ -1,3 +1,28 @@
+# CredLock v1.2.0 — Release Notes
+
+## What's New
+
+### Custom Tags
+Organise your vault your way. Create your own labels — Work, Banking, Family, or anything you like — and assign them to any credential. A filter bar at the top of the vault lets you instantly narrow down entries by tag. Manage your tags from Settings → Vault → Manage Tags.
+
+### Update Notifications
+The app will now notify you when a new version is available. A banner appears at the top of the screen with a direct link to the Play Store. You can dismiss it and it won't appear again until the next release.
+
+### About Section in Settings
+Settings now shows your current app version and a Check for Updates option so you can manually check for new releases at any time.
+
+## Improvements
+- Health meter now correctly handles credentials that use a PIN instead of a password. PIN-only entries are no longer flagged as unhealthy.
+- Overdue password check skips PIN-only entries, since there is no password to rotate.
+
+## Bug Fixes
+- Fixed: items with only an app PIN set were incorrectly marked as unhealthy in the Security Health dashboard.
+
+---
+*CredLock v1.2.0 (build 4)*
+
+---
+
 # CredLock v1.1.0 — Release Notes
 
 ## What's New
