@@ -37,20 +37,31 @@ class HealthService {
         .toList();
 
     // ── Overdue passwords ───────────────────────────────────────────────────
+    // PIN-only entries (no password) are excluded — there is no password to rotate.
     List<PasswordEntry> overdue = [];
     if (settings.enabled) {
       overdue = entries
-          .where((e) => isOverdue(e, settings.frequency, now))
+          .where(
+            (e) =>
+                e.password.isNotEmpty && isOverdue(e, settings.frequency, now),
+          )
           .toList();
     } else {
       // Fall back to 6-month window even if reminders are off
       overdue = entries
-          .where((e) => isOverdue(e, ReminderFrequency.sixMonths, now))
+          .where(
+            (e) =>
+                e.password.isNotEmpty &&
+                isOverdue(e, ReminderFrequency.sixMonths, now),
+          )
           .toList();
     }
 
     // ── Empty passwords ─────────────────────────────────────────────────────
-    final empty = entries.where((e) => e.password.isEmpty).toList();
+    // An entry secured with a PIN instead of a password is valid — exclude it.
+    final empty = entries
+        .where((e) => e.password.isEmpty && (e.pin == null || e.pin!.isEmpty))
+        .toList();
 
     return HealthReport(
       totalEntries: entries.length,
