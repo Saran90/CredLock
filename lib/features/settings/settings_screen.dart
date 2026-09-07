@@ -12,6 +12,7 @@ import '../../data/db/database_helper.dart';
 import '../../data/repositories/reminder_settings_repository.dart';
 import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
+import '../tags/tag_management_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -261,6 +262,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onBackup: _handleBackup,
                   onRestore: _handleRestore,
                   onSignOut: _handleSignOut,
+                ),
+
+                // ── VAULT section ────────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'VAULT',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBackground,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.label_outline,
+                            color: AppColors.primary,
+                          ),
+                          title: Text(
+                            'Manage Tags',
+                            style: AppTextStyles.titleMedium,
+                          ),
+                          subtitle: Text(
+                            'Create, rename, or delete your custom labels',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const TagManagementScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
                 // ── SECURITY section ─────────────────────────────────────────

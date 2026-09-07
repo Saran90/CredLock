@@ -1,4 +1,4 @@
-package com.credlock.credlock
+package com.yuklore.credlock
 
 import android.os.Build
 import androidx.annotation.RequiresApi

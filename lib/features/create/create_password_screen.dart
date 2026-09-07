@@ -8,7 +8,10 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/services/app_lookup_service.dart';
 import '../../core/services/website_lookup_service.dart';
 import '../../data/models/password_entry.dart';
+import '../../data/models/tag.dart';
 import '../../data/repositories/password_repository.dart';
+import '../../data/repositories/tag_repository.dart';
+import '../tags/tag_management_screen.dart';
 
 class CreatePasswordScreen extends StatefulWidget {
   /// Pass an existing entry to open in edit mode.
@@ -47,6 +50,10 @@ class _CreatePasswordScreenState extends State<CreatePasswordScreen>
   String _pin = '';
   String _confirmPin = '';
   bool _pinMismatch = false;
+
+  // Tags
+  List<Tag> _allTags = [];
+  List<int> _selectedTagIds = [];
 
   // App lookup (mobile category only)
   List<AppMatch> _appSuggestions = [];
@@ -104,12 +111,15 @@ class _CreatePasswordScreenState extends State<CreatePasswordScreen>
         _confirmPin = existing.pin!;
         _pinAnim.value = 1.0;
       }
+      _selectedTagIds = List<int>.from(existing.tagIds);
       _lastChangedDate = existing.lastUpdatedAt;
     } else {
       _lastChangedDate = DateTime.now();
     }
 
     _generatePassword();
+    // Load user-defined tags.
+    _loadTags();
     // App list is loaded lazily on first search — no preload here.
   }
 
@@ -123,6 +133,22 @@ class _CreatePasswordScreenState extends State<CreatePasswordScreen>
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTags() async {
+    final tags = await TagRepository.instance.getAll();
+    if (!mounted) return;
+    setState(() => _allTags = tags);
+  }
+
+  void _toggleTag(int tagId) {
+    setState(() {
+      if (_selectedTagIds.contains(tagId)) {
+        _selectedTagIds.remove(tagId);
+      } else {
+        _selectedTagIds.add(tagId);
+      }
+    });
   }
 
   void _onPasswordChanged() =>
@@ -345,6 +371,7 @@ class _CreatePasswordScreenState extends State<CreatePasswordScreen>
           : _websiteFaviconBase64,
       createdAt: existing?.createdAt ?? now,
       lastUpdatedAt: lastUpdated,
+      tagIds: _selectedTagIds,
     );
 
     if (existing != null) {
@@ -472,6 +499,20 @@ class _CreatePasswordScreenState extends State<CreatePasswordScreen>
                   } else if (_nameController.text.isNotEmpty) {
                     _doAppSearch(_nameController.text);
                   }
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // ── Tags ────────────────────────────────────────────────────
+              _TagSelector(
+                allTags: _allTags,
+                selectedIds: _selectedTagIds,
+                onToggle: _toggleTag,
+                onTagCreated: (tag) {
+                  setState(() {
+                    _allTags = [..._allTags, tag];
+                    _selectedTagIds = [..._selectedTagIds, tag.id!];
+                  });
                 },
               ),
               const SizedBox(height: 28),
@@ -1425,6 +1466,126 @@ class _Numpad extends StatelessWidget {
             ),
           )
           .toList(),
+    );
+  }
+}
+
+// ── Tag selector ──────────────────────────────────────────────────────────────
+
+/// Horizontally-scrolling row of tag chips that lets the user select zero or
+/// more tags.  A trailing "+" chip opens the quick-create sheet.
+class _TagSelector extends StatelessWidget {
+  final List<Tag> allTags;
+  final List<int> selectedIds;
+  final ValueChanged<int> onToggle;
+  final ValueChanged<Tag> onTagCreated;
+
+  const _TagSelector({
+    required this.allTags,
+    required this.selectedIds,
+    required this.onToggle,
+    required this.onTagCreated,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('TAGS', style: AppTextStyles.labelSmall),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ...allTags.map((tag) {
+                final selected = selectedIds.contains(tag.id);
+                final color = Color(tag.color);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => onToggle(tag.id!),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? color.withValues(alpha: 0.18)
+                            : AppColors.cardBackground,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: selected ? color : AppColors.surface,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            selected ? Icons.label : Icons.label_outline,
+                            color: selected ? color : AppColors.textHint,
+                            size: 13,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            tag.name,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: selected ? color : AppColors.textSecondary,
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+
+              // "+" chip — opens quick-create sheet
+              GestureDetector(
+                onTap: () async {
+                  final created = await showQuickCreateTagSheet(context);
+                  if (created != null) onTagCreated(created);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBackground,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add, color: AppColors.primary, size: 13),
+                      const SizedBox(width: 4),
+                      Text(
+                        'New tag',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

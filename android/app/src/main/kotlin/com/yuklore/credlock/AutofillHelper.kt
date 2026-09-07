@@ -1,4 +1,4 @@
-package com.credlock.credlock
+package com.yuklore.credlock
 
 import android.content.Context
 import android.os.Build

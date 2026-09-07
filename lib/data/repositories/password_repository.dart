@@ -38,15 +38,66 @@ class PasswordRepository {
     return result;
   }
 
+  /// Loads tag IDs for every entry in one query and returns a map of
+  /// entry_id → [tag_id, ...].
+  Future<Map<int, List<int>>> _loadAllTagIds(Database db) async {
+    final rows = await db.query(DatabaseHelper.tableEntryTags);
+    final map = <int, List<int>>{};
+    for (final row in rows) {
+      final entryId = row['entry_id'] as int;
+      final tagId = row['tag_id'] as int;
+      map.putIfAbsent(entryId, () => []).add(tagId);
+    }
+    return map;
+  }
+
+  /// Loads tag IDs for a single entry.
+  Future<List<int>> _loadTagIdsForEntry(Database db, int entryId) async {
+    final rows = await db.query(
+      DatabaseHelper.tableEntryTags,
+      where: 'entry_id = ?',
+      whereArgs: [entryId],
+    );
+    return rows.map((r) => r['tag_id'] as int).toList();
+  }
+
+  /// Replaces all tag associations for [entryId] with [tagIds].
+  Future<void> _saveTagIds(
+    Database db,
+    int entryId,
+    List<int> tagIds, {
+    Transaction? txn,
+  }) async {
+    final executor = txn ?? db;
+    // Delete existing associations for this entry.
+    await executor.delete(
+      DatabaseHelper.tableEntryTags,
+      where: 'entry_id = ?',
+      whereArgs: [entryId],
+    );
+    // Insert new associations.
+    for (final tagId in tagIds) {
+      await executor.insert(
+        DatabaseHelper.tableEntryTags,
+        {'entry_id': entryId, 'tag_id': tagId},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
+
   // ── Create ────────────────────────────────────────────────────────────────
 
   Future<PasswordEntry> insert(PasswordEntry entry) async {
     final db = await _db;
-    final id = await db.insert(
-      DatabaseHelper.tablePasswords,
-      _encryptRow(entry.toMap()),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    late int id;
+    await db.transaction((txn) async {
+      id = await txn.insert(
+        DatabaseHelper.tablePasswords,
+        _encryptRow(entry.toMap()),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      await _saveTagIds(db, id, entry.tagIds, txn: txn);
+    });
     return entry.copyWith(id: id);
   }
 
@@ -58,7 +109,15 @@ class PasswordRepository {
       DatabaseHelper.tablePasswords,
       orderBy: 'created_at DESC',
     );
-    return rows.map((r) => PasswordEntry.fromMap(_decryptRow(r))).toList();
+    final tagMap = await _loadAllTagIds(db);
+    return rows.map((r) {
+      final decrypted = _decryptRow(r);
+      final entryId = decrypted['id'] as int?;
+      return PasswordEntry.fromMap(
+        decrypted,
+        tagIds: entryId != null ? (tagMap[entryId] ?? []) : [],
+      );
+    }).toList();
   }
 
   Future<PasswordEntry?> getById(int id) async {
@@ -70,7 +129,8 @@ class PasswordRepository {
       limit: 1,
     );
     if (rows.isEmpty) return null;
-    return PasswordEntry.fromMap(_decryptRow(rows.first));
+    final tagIds = await _loadTagIdsForEntry(db, id);
+    return PasswordEntry.fromMap(_decryptRow(rows.first), tagIds: tagIds);
   }
 
   /// Search is done in-memory after decryption since fields are encrypted.
@@ -90,17 +150,23 @@ class PasswordRepository {
   // ── Update ────────────────────────────────────────────────────────────────
 
   Future<void> update(PasswordEntry entry) async {
+    assert(entry.id != null, 'Cannot update a PasswordEntry without an id');
     final db = await _db;
-    await db.update(
-      DatabaseHelper.tablePasswords,
-      _encryptRow(entry.toMap()),
-      where: 'id = ?',
-      whereArgs: [entry.id],
-    );
+    await db.transaction((txn) async {
+      await txn.update(
+        DatabaseHelper.tablePasswords,
+        _encryptRow(entry.toMap()),
+        where: 'id = ?',
+        whereArgs: [entry.id],
+      );
+      await _saveTagIds(db, entry.id!, entry.tagIds, txn: txn);
+    });
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
 
+  /// Deletes the entry. The entry_tags rows are removed automatically by the
+  /// ON DELETE CASCADE foreign-key constraint.
   Future<void> delete(int id) async {
     final db = await _db;
     await db.delete(
@@ -113,7 +179,7 @@ class PasswordRepository {
   // ── Favorite toggle ───────────────────────────────────────────────────────
 
   /// Flips the [isFavorite] flag for a single entry without touching any
-  /// encrypted fields. Returns the updated entry.
+  /// encrypted fields or tag associations. Returns the updated entry.
   Future<PasswordEntry> toggleFavorite(PasswordEntry entry) async {
     final db = await _db;
     final updated = entry.copyWith(isFavorite: !entry.isFavorite);

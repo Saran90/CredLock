@@ -12,6 +12,11 @@ class PasswordEntry {
   final DateTime lastUpdatedAt;
   final bool isFavorite;
 
+  /// IDs of the [Tag]s attached to this entry.
+  /// Populated by [PasswordRepository] via the entry_tags junction table —
+  /// not stored directly inside the passwords row.
+  final List<int> tagIds;
+
   const PasswordEntry({
     this.id,
     required this.category,
@@ -25,8 +30,12 @@ class PasswordEntry {
     required this.createdAt,
     DateTime? lastUpdatedAt,
     this.isFavorite = false,
-  }) : lastUpdatedAt = lastUpdatedAt ?? createdAt;
+    List<int>? tagIds,
+  }) : lastUpdatedAt = lastUpdatedAt ?? createdAt,
+       tagIds = tagIds ?? const [];
 
+  /// Serialises the passwords-table columns only (tagIds is managed via the
+  /// entry_tags junction table and is NOT included here).
   Map<String, dynamic> toMap() => {
     if (id != null) 'id': id,
     'category': category,
@@ -42,7 +51,10 @@ class PasswordEntry {
     'is_favorite': isFavorite ? 1 : 0,
   };
 
-  factory PasswordEntry.fromMap(Map<String, dynamic> map) => PasswordEntry(
+  factory PasswordEntry.fromMap(
+    Map<String, dynamic> map, {
+    List<int>? tagIds,
+  }) => PasswordEntry(
     id: map['id'] as int?,
     category: map['category'] as String,
     name: map['name'] as String,
@@ -57,6 +69,7 @@ class PasswordEntry {
         ? DateTime.parse(map['last_updated_at'] as String)
         : DateTime.parse(map['created_at'] as String),
     isFavorite: (map['is_favorite'] as int? ?? 0) == 1,
+    tagIds: tagIds ?? const [],
   );
 
   PasswordEntry copyWith({
@@ -72,6 +85,7 @@ class PasswordEntry {
     DateTime? createdAt,
     DateTime? lastUpdatedAt,
     bool? isFavorite,
+    List<int>? tagIds,
   }) => PasswordEntry(
     id: id ?? this.id,
     category: category ?? this.category,
@@ -85,5 +99,6 @@ class PasswordEntry {
     createdAt: createdAt ?? this.createdAt,
     lastUpdatedAt: lastUpdatedAt ?? this.lastUpdatedAt,
     isFavorite: isFavorite ?? this.isFavorite,
+    tagIds: tagIds ?? this.tagIds,
   );
 }

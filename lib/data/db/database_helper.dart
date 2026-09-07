@@ -8,8 +8,10 @@ class DatabaseHelper {
   static Database? _db;
 
   static const _dbName = 'credlock.db';
-  static const _dbVersion = 4;
+  static const _dbVersion = 5;
   static const tablePasswords = 'passwords';
+  static const tableTags = 'tags';
+  static const tableEntryTags = 'entry_tags';
 
   Future<Database> get database async {
     _db ??= await _initDb();
@@ -24,6 +26,8 @@ class DatabaseHelper {
       version: _dbVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
+      // Required so SQLite enforces FOREIGN KEY constraints.
+      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
     );
   }
 
@@ -44,6 +48,8 @@ class DatabaseHelper {
         is_favorite     INTEGER NOT NULL DEFAULT 0
       )
     ''');
+
+    await _createTagTables(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -68,7 +74,35 @@ class DatabaseHelper {
         'ALTER TABLE $tablePasswords ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0',
       );
     }
+    if (oldVersion < 5) {
+      await _createTagTables(db);
+    }
   }
+
+  Future<void> _createTagTables(Database db) async {
+    // User-defined tags (name + ARGB color integer).
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableTags (
+        id    INTEGER PRIMARY KEY AUTOINCREMENT,
+        name  TEXT    NOT NULL,
+        color INTEGER NOT NULL DEFAULT 4284513675
+      )
+    ''');
+
+    // Many-to-many junction: one entry can have many tags, one tag can appear
+    // on many entries.  Cascade deletes keep things tidy automatically.
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableEntryTags (
+        entry_id INTEGER NOT NULL
+          REFERENCES $tablePasswords(id) ON DELETE CASCADE,
+        tag_id   INTEGER NOT NULL
+          REFERENCES $tableTags(id)    ON DELETE CASCADE,
+        PRIMARY KEY (entry_id, tag_id)
+      )
+    ''');
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   /// Returns the full filesystem path to the database file.
   Future<String> getDatabasePath() async {
@@ -83,10 +117,12 @@ class DatabaseHelper {
     _db = null;
   }
 
-  /// Deletes all data from the passwords table.
+  /// Deletes all data from the passwords table (and cascades to entry_tags).
   /// Used when signing out to prevent data leakage across accounts.
   Future<void> clearAllData() async {
     final db = await database;
+    await db.delete(tableEntryTags);
+    await db.delete(tableTags);
     await db.delete(tablePasswords);
   }
 

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class AutofillService {
-  static const platform = MethodChannel('com.credlock.credlock/autofill');
+  static const platform = MethodChannel('com.yuklore.credlock/autofill');
 
   /// Enable autofill for the app
   static Future<bool> enableAutofill() async {
