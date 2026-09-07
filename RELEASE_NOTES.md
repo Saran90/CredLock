@@ -19,7 +19,7 @@ Settings now shows your current app version and a Check for Updates option so yo
 - Fixed: items with only an app PIN set were incorrectly marked as unhealthy in the Security Health dashboard.
 
 ---
-*CredLock v1.2.0 (build 4)*
+*CredLock v1.2.0 (build 5)*
 
 ---
 
